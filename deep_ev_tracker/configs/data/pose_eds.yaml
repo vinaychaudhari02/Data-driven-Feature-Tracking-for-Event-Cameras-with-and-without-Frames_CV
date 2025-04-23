@@ -1,0 +1,13 @@
+name: pose
+
+_target_: utils.dataset.PoseDataModule
+
+#root_dir: /home/aircraft-lab/Documents/Deep_Learning_Project/eds_subseq/00_peanuts_dark
+root_dir: eds_test_dataset/00_peanuts_dark
+n_frames_skip: 8
+n_event_representations_per_frame: 3
+
+num_workers: 4
+batch_size: 16
+n_train: 2500
+n_val: 200
