@@ -39,10 +39,10 @@ def generate_single_track(seq_dir, dt=0.01):
     split = seq_dir.parents[0].stem
 
     # Load reference image
-    img_t0_p = seq_dir / "images" / "frame_0000000000.png"
+    img_t0_p = seq_dir / "images" / "0000000.png"
     if img_t0_p.exists():
         img_t0 = cv2.imread(
-            str(seq_dir / "images" / "frame_0000000000.png"), cv2.IMREAD_GRAYSCALE
+            str(seq_dir / "images" / "0000000.png"), cv2.IMREAD_GRAYSCALE
         )
     else:
         print(f"Sequence {seq_dir} has no reference image.")
@@ -65,8 +65,10 @@ def generate_single_track(seq_dir, dt=0.01):
         tracks.append(track.reshape((1, 3)))
 
     # Read flow
-    for ts_us in np.arange(0 + dt_us, 1029 + dt_us, dt_us):
-        flow_path = seq_dir / "flow" / f"flow_{ts_us:.0f}.h5"
+    for ts_us in np.arange(410000, 900001, dt_us):
+        flow_path = seq_dir / "flow" / f"{int(ts_us):07d}.h5"
+        if not flow_path.exists():
+            continue  # Skip if file doesn't exist
         with h5py.File(str(flow_path), "r") as h5f:
             flow = np.asarray(h5f["flow"])
 

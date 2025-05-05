@@ -2,7 +2,7 @@ import multiprocessing
 import os
 from pathlib import Path
 import sys
-sys.path.append('/home/aircraft-lab/Documents/Deep_Learning_Project/deep_ev_tracker')
+sys.path.append('/data/projects/vchaudhari/CV_project/deep_ev_tracker')
 
 import cv2
 import fire
