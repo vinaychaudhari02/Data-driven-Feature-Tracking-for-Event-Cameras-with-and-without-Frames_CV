@@ -1,0 +1,7 @@
+name: MOE_model
+
+_target_: models.MOE_model.TrackerNetHeat
+patch_size: 31
+feature_dim: 384
+defaults:
+  - /optim/adam.yaml@optimizer

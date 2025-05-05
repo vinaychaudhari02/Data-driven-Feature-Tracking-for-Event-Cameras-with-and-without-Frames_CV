@@ -15,14 +15,14 @@ logging: True
 
 # Do not forget to set the learning rate for supervised or for pose finetuning in configs/optim/adam.yaml
 defaults:
-  - data: pose_eds # [mf, pose_eds, pose_ec]
-  - model: correlation3_unscaled
-  - training: pose_finetuning_train_eds # [supervised_train, pose_finetuning_train_ec, pose_finetuning_train_eds]
+  - data: mf # [mf, pose_eds, pose_ec]
+  - model: MOE_model
+  - training: supervised_train # [supervised_train, pose_finetuning_train_ec, pose_finetuning_train_eds]
 
 # Pytorch lightning trainer's argument
 trainer:
   benchmark: True
   log_every_n_steps: 8
-  max_epochs: 40000
-  num_processes: 1
+  max_epochs: 400
+  #num_processes: 1
   num_sanity_val_steps: 1

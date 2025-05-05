@@ -326,10 +326,12 @@ def retrieve_track_tuples(extra_dir, track_name):
         track_path = os.path.join(str(extra_seq_dir), "tracks", f"{track_name}.gt.txt")
         if not os.path.exists(track_path):
             continue
+        print(f"[DEBUG] retrieve_track_tuples: found track file at {track_path}")
 
         # Store paths
         track_data = np.genfromtxt(track_path)
         n_tracks = len(np.unique(track_data[:, 0]))
+        print(f"[DEBUG] retrieve_track_tuples: n_tracks={n_tracks} for sequence {extra_seq_dir.stem}")
         for track_idx in range(n_tracks):
             track_tuples.append((track_path, track_idx))
 

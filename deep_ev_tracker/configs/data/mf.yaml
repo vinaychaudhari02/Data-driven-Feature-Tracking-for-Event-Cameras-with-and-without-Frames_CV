@@ -1,13 +1,13 @@
 name: mf
 
 _target_: utils.dataset.MFDataModule
-data_dir: /home/aircraft-lab/Documents/Deep_Learning_Project/data
-extra_dir: /home/aircraft-lab/Documents/Deep_Learning_Project/data_extra
+data_dir: /data/projects/vchaudhari/CV_project/data
+extra_dir: /data/projects/vchaudhari/CV_project/data_extra
 dt: 0.0200
 num_workers: 4
 
 # For tracks
-batch_size: 32
+batch_size: 4
 n_train: 30000
 n_val: 1000
 

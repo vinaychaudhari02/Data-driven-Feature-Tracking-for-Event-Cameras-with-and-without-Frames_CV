@@ -96,8 +96,12 @@ class TrackData:
             print("Unsupported dt for feature track")
             raise NotImplementedError
 
-        # Input and Labels
-        ref_input = read_input(self.frame_paths[0], "grayscale")
+        # Input and Labels: use frame if available, else fall back to first event representation
+        if self.frame_paths:
+            ref_input = read_input(self.frame_paths[0], "grayscale")
+        else:
+            # no frames: use event representation as reference
+            ref_input = read_input(self.event_paths[0], self.config.representation)
         ref_input = augment_input(
             ref_input, self.flipped_lr, self.flipped_ud, self.rotation_angle
         )
@@ -165,8 +169,12 @@ class TrackData:
         # Round feature location to accommodate get_patch_voxel
         self.u_center = np.rint(self.u_center)
 
+        # Clamp index to valid range to avoid out-of-bounds
+        raw_idx = self.time_idx * self.index_multiplier
+        max_idx = self.track_data.shape[0] - 1
+        idx = min(raw_idx, max_idx)
         # Update gt location
-        self.u_center_gt = self.track_data[self.time_idx * self.index_multiplier, :]
+        self.u_center_gt = self.track_data[idx, :]
 
         # Update total flow
         y = (self.u_center_gt - self.u_center).astype(np.float32)
@@ -219,6 +227,9 @@ class TrackData:
         # Minor Processing Steps
         x = torch.unsqueeze(x, 0)
         y = torch.unsqueeze(y, 0)
+
+        # Clamp index for v_center_gt as well
+        self.v_center_gt = self.track_data[idx, 2:]
 
         return x, y
 
@@ -315,28 +326,29 @@ class MFDataModule(LightningDataModule):
                 track_tuples = retrieve_track_tuples(
                     self.extra_dir / split_name, track_name
                 )
+                # Ensure cache directory exists
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(str(cache_path), "wb") as cache_f:
                     pickle.dump(track_tuples, cache_f)
 
-            # Shuffle and trim
+            # Shuffle and trim to multiples of 64 only if enough tracks; else keep all
             n_tracks = len(track_tuples)
-            track_tuples_array = np.asarray(track_tuples)
-            track_tuples_array = track_tuples_array[: (n_tracks // 64) * 64, :]
-            track_tuples_array = track_tuples_array.reshape([(n_tracks // 64), 64, 2])
-            rand_perm = np.random.permutation((n_tracks // 64))
-            track_tuples_array = track_tuples_array[rand_perm, :, :].reshape(
-                (n_tracks // 64) * 64, 2
-            )
-            track_tuples_array[:, 1] = track_tuples_array[:, 1].astype(int)
-            track_tuples = []
-            for i in range(track_tuples_array.shape[0]):
-                track_tuples.append(
-                    [track_tuples_array[i, 0], int(track_tuples_array[i, 1])]
-                )
+            if n_tracks >= 64:
+                # trim to full groups of 64
+                num_full = (n_tracks // 64) * 64
+                arr = np.asarray(track_tuples)[:num_full, :]
+                # reshape to (groups, 64, 2), permute groups, then flatten
+                groups = arr.reshape((num_full // 64, 64, 2))
+                perm = np.random.permutation(groups.shape[0])
+                flat = groups[perm, :, :].reshape(num_full, 2)
+                flat[:, 1] = flat[:, 1].astype(int)
+                track_tuples = [[flat[i, 0], int(flat[i, 1])] for i in range(num_full)]
+            # else: leave track_tuples unchanged
 
             if self.split_max_samples[split_name] < len(track_tuples):
                 track_tuples = track_tuples[: self.split_max_samples[split_name]]
             self.split_track_tuples[split_name] = track_tuples
+        print(f"[DEBUG] MFDataModule: train tuples={len(self.split_track_tuples['train'])}, test tuples={len(self.split_track_tuples['test'])}")
 
     @staticmethod
     def get_frame_paths(track_path):
