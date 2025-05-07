@@ -1,0 +1,36 @@
+age_5_mu
+Sequence Name,network_pred
+peanuts_running_2360_2460,0.02272835304348456
+peanuts_light_160_386,0.06186430711517532
+age_5_std
+Sequence Name,network_pred
+peanuts_running_2360_2460,0.0011554714582096039
+peanuts_light_160_386,0.04602926004188594
+te_5_mu
+Sequence Name,network_pred
+peanuts_running_2360_2460,3.1118368307608453
+peanuts_light_160_386,2.633303795396398
+te_5_std
+Sequence Name,network_pred
+peanuts_running_2360_2460,1.1012369314064951
+peanuts_light_160_386,0.9360005097039023
+age_mu
+Sequence Name,network_pred
+peanuts_running_2360_2460,0.038447072628468026
+peanuts_light_160_386,0.2960665851862375
+age_std
+Sequence Name,network_pred
+peanuts_running_2360_2460,0.01767067153393537
+peanuts_light_160_386,0.19109987483342447
+inliers_mu
+Sequence Name,network_pred
+peanuts_running_2360_2460,0.5364396654719236
+peanuts_light_160_386,0.8548387096774192
+inliers_std
+Sequence Name,network_pred
+peanuts_running_2360_2460,0.394872997403251
+peanuts_light_160_386,0.21643341331501514
+expected_age
+Sequence Name,network_pred
+peanuts_running_2360_2460,0.02514522238398513
+peanuts_light_160_386,0.2796311604243959
