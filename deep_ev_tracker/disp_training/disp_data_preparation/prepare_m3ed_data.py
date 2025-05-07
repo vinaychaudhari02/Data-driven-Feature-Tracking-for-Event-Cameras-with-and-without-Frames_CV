@@ -6,12 +6,14 @@ import numpy as np
 import tqdm
 import yaml
 
+
+
 from disp_training.disp_data_preparation.utils import project_points, reproject_points, compute_rectify_map, remap_events
 from disp_training.disp_data_preparation.feature_filter_depth import FeatureFilter
 
-DATA_DIR = <path>
-VIZ_DIR = <path>
-SAVE_DIR = <path>
+DATA_DIR = "F:\multiflow\M3ED"
+VIZ_DIR = "F:\multiflow\M3ED_viz"
+SAVE_DIR = "F:\multiflow\M3ED_output_5"
 FILTER_TRACK_LENGTH = 20  # Frames to keep tracks
 REPROJECTION_ERROR_THRESHOLD = 3
 PATCH_MARGIN = 32
@@ -522,9 +524,23 @@ def process_sequence(sequence):
         T_W_ovcleft, depth_image_ovcleft, left_event_idx = read_depth_pose(sequence_dir, time_ts)
         img_ovcleft = read_image(sequence_dir, time_ts)
 
+
+        feature_filter.forward_step(
+            depth_image=depth_image_ovcleft,
+            image=img_ovcleft,
+            T_W_C=T_W_ovcleft,
+            K=K_ovcleft,
+            frame_id=time_ts
+        )
+
         forward_timestamps.append(time_ts)
         if T_W_ovcleft is not None:
             ovc_poses[str(time_ts)] = T_W_ovcleft
+
+    print(f"[Forward] total tracks created:   {feature_filter.track_storage.track_counter}")
+    print(f"[Forward] active tracks in storage: {len(feature_filter.track_storage.track_storage)}")
+    print(f"[Forward] active feature points:    {feature_filter.track_storage.tracked_points.shape[0]}")
+    # ===============================
 
     # ========== Backward Loop ==========
     for i_time in tqdm.tqdm(range(len(forward_timestamps)), total=len(forward_timestamps), desc="Backward Loop"):

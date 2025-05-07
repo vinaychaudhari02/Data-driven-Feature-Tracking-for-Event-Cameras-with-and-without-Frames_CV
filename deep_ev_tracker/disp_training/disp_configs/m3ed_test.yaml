@@ -1,6 +1,6 @@
 hydra:
   run:
-    dir: <path>/${data.name}/${now:%Y-%m-%d_%H%M%S}
+    dir: "F:/multiflow/M3ED_output_6_test"
 
 # Composing nested config with default
 experiment: disparity_method
@@ -10,8 +10,19 @@ min_track_length: 20
 tracks_per_sample: 16
 disp_patch_range: 122
 
-checkpoint_path: <path>
+checkpoint_path: D:\Academics\PhD\SLU\Computer Vision\Data-driven-Feature-Tracking-for-Event-Cameras-with-and-without-Frames_CV\disp_pretrained_weights.ckpt
 
 defaults:
   - data: m3ed
   - model: correlation3_unscaled_disp
+
+# Override data module settings for single sequence
+data:
+  data_dir: "F:/multiflow/M3ED_output_5"  # Explicitly set data directory
+  batch_size: 1  # Reduced batch size for single sequence
+  num_workers: 4  # Reduced workers for single sequence
+  tracks_per_sample: 16  # Number of tracks per sample
+  min_track_length: 20  # Minimum track length
+  patch_size: 63  # Patch size
+  disp_patch_range: 122  # Disparity patch range
+  augment: False  # No augmentation for testing

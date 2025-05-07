@@ -3,27 +3,27 @@ import torch.nn.init
 from disp_model.disp_template import DistTemplate
 from models.common import *
 from utils.losses import *
-
+import torch.nn.functional as F
 
 class FPNEncoder(nn.Module):
     def __init__(self, in_channels=1, out_channels=512, recurrent=False):
         super(FPNEncoder, self).__init__()
-        self.conv_bottom_0 = ConvBlock3(in_channels=in_channels, out_channels=32, n_convs=2,
+        self.conv_bottom_0 = ConvBlock(in_channels=in_channels, out_channels=32, n_convs=2,
                                         kernel_size=1, padding=0, downsample=False)
 
-        self.conv_bottom_0_2 = ConvBlock3(in_channels=32, out_channels=32, n_convs=2,
+        self.conv_bottom_0_2 = ConvBlock(in_channels=32, out_channels=32, n_convs=2,
                                           kernel_size=3, padding=1, downsample=True)
 
-        self.conv_bottom_1 = ConvBlock3(in_channels=32, out_channels=64, n_convs=2,
+        self.conv_bottom_1 = ConvBlock(in_channels=32, out_channels=64, n_convs=2,
                                         kernel_size=5, padding=0,
                                         downsample=False)
-        self.conv_bottom_2 = ConvBlock3(in_channels=64, out_channels=128, n_convs=2,
+        self.conv_bottom_2 = ConvBlock(in_channels=64, out_channels=128, n_convs=2,
                                         kernel_size=5, padding=0,
                                         downsample=False)
-        self.conv_bottom_3 = ConvBlock3(in_channels=128, out_channels=256, n_convs=2,
+        self.conv_bottom_3 = ConvBlock(in_channels=128, out_channels=256, n_convs=2,
                                         kernel_size=3, padding=0,
                                         downsample=True)
-        self.conv_bottom_4 = ConvBlock3(in_channels=256, out_channels=out_channels, n_convs=2,
+        self.conv_bottom_4 = ConvBlock(in_channels=256, out_channels=out_channels, n_convs=2,
                                         kernel_size=3, padding=0, downsample=False)
 
         self.recurrent = recurrent
@@ -40,14 +40,14 @@ class FPNEncoder(nn.Module):
         self.conv_dealias_1 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, padding=1, bias=True)
         self.conv_dealias_0 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, padding=1, bias=True)
         self.conv_out = nn.Sequential(
-            ConvBlock3(in_channels=out_channels, out_channels=out_channels,
+            ConvBlock(in_channels=out_channels, out_channels=out_channels,
                        n_convs=1, kernel_size=3, padding=1, downsample=False),
             nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, padding=1,
                       bias=True)
         )
 
         self.conv_bottleneck_out = nn.Sequential(
-            ConvBlock3(in_channels=out_channels, out_channels=out_channels,
+            ConvBlock(in_channels=out_channels, out_channels=out_channels,
                        n_convs=1, kernel_size=3, padding=1, downsample=False),
             nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, padding=1,
                       bias=True)
@@ -90,11 +90,11 @@ class JointEncoder(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(JointEncoder, self).__init__()
 
-        self.conv1 = ConvBlock3(in_channels=in_channels, out_channels=64, n_convs=2, downsample=True)
-        self.conv2 = ConvBlock3(in_channels=64, out_channels=128, n_convs=2, downsample=True)
+        self.conv1 = ConvBlock(in_channels=in_channels, out_channels=64, n_convs=2, downsample=True)
+        self.conv2 = ConvBlock(in_channels=64, out_channels=128, n_convs=2, downsample=True)
         self.convlstm0 = ConvLSTMCell(128, 128, 3)
-        self.conv3 = ConvBlock3(in_channels=128, out_channels=256, n_convs=2, downsample=True)
-        self.conv4 = ConvBlock3(in_channels=256, out_channels=256, kernel_size=3, padding=0,
+        self.conv3 = ConvBlock(in_channels=128, out_channels=256, n_convs=2, downsample=True)
+        self.conv4 = ConvBlock(in_channels=256, out_channels=256, kernel_size=3, padding=0,
                                 n_convs=1, downsample=False)
 
         # Transformer Addition

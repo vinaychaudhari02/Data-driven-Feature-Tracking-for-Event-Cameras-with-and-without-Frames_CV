@@ -93,6 +93,9 @@ class TrackStorage:
                 prev_points.append(track_dict['track'][prev_frame_id])
                 prev_point_to_storage_id.append(i_track)
 
+        if not prev_points:  # If no points were found
+            return np.array([]), np.array([])
+            
         return np.stack(prev_points), np.array(prev_point_to_storage_id)
 
     def get_aggregated_P_W(self, P_W_track):

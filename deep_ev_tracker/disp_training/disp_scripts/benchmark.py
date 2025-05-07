@@ -3,11 +3,12 @@ import csv
 import numpy as np
 
 RESULTS_DICT = {
-    "Ours": <path>/results.npz,
+    "Ours": "F:/multiflow/M3ED_output_5_test/results.npz",
 }
-GT_PATH = <path>/ground_truth.npz
-DATASET_PATH = <path>
-OUT_DIR = <path>
+GT_PATH = "F:/multiflow/M3ED_output_5_test/ground_truth.npz"
+DATASET_PATH = "F:/multiflow/M3ED/"
+OUT_DIR = "F:/multiflow/M3ED_output_5_test_benchmark"
+os.makedirs(OUT_DIR, exist_ok=True)
 
 
 def save_metrics(methods_avg, methods_end_point):

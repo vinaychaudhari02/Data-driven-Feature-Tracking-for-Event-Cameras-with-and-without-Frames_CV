@@ -70,8 +70,18 @@ def invert_map(F):
 
 def reproject_points(u, v, depth_image, T_C_W, K, z=None):
     if z is None:
-        z = depth_image[v.astype('int'), u.astype('int')]
-    valid_mask = z != 0
+        # Check if u and v are within depth_image bounds
+        height, width = depth_image.shape[:2]
+        valid_u = (u >= 0) & (u < width)
+        valid_v = (v >= 0) & (v < height)
+        valid_uv = valid_u & valid_v
+
+        # Initialize z with zeros and fill valid entries
+        z = np.zeros_like(u, dtype=depth_image.dtype)
+        z[valid_uv] = depth_image[v[valid_uv].astype('int'), u[valid_uv].astype('int')]
+        valid_mask = (z != 0) & valid_uv  # Combine depth valid and in-bounds checks
+    else:
+        valid_mask = z != 0
 
     u, v, z = u[valid_mask], v[valid_mask], z[valid_mask]
     p = np.stack([u, v, np.ones([u.shape[0]])], axis=1)
