@@ -12,7 +12,7 @@ from prettytable import PrettyTable
 from tqdm import tqdm
 import os
 import sys
-sys.path.append('/home/aircraft-lab/Documents/Deep_Learning_Project/deep_ev_tracker/')
+sys.path.append('/data/projects/vchaudhari/CV_project/deep_ev_tracker')
 
 from utils.dataset import EvalDatasetType
 from utils.track_utils import compute_tracking_errors, read_txt_results
@@ -20,35 +20,21 @@ from utils.track_utils import compute_tracking_errors, read_txt_results
 plt.rcParams["font.family"] = "serif"
 
 EVAL_DATASETS = [
-    ("rgb_aligned_town01_night_defocus_blur_2_99", EvalDatasetType.EDS),
-    ("rgb_aligned_town01_night_fog_2_99", EvalDatasetType.EDS),
-    ("rgb_aligned_town01_night_frost_2_99", EvalDatasetType.EDS),
-    ("rgb_aligned_town01_night_original_2_99", EvalDatasetType.EDS),
-    ("rgb_aligned_town01_night_glass_blur_2_99", EvalDatasetType.EDS),
-    ("rgb_aligned_town01_night_guassian_blur_2_99", EvalDatasetType.EDS),
-    ("rgb_aligned_town01_night_impulse_noise_2_99", EvalDatasetType.EDS),
-    ("rgb_aligned_town01_night_motion_blur_2_99", EvalDatasetType.EDS),
-    ("rgb_aligned_town01_night_shot_noise_2_99", EvalDatasetType.EDS),
-    ("rgb_aligned_town01_night_speckle_noise_2_99", EvalDatasetType.EDS),
-    # ("rgb_defocus_blur_2_99", EvalDatasetType.EDS),
-    # ("rgb_aligned_town01_night_fog_2_99", EvalDatasetType.EDS),
-    # ("rgb_aligned_town01_night_frost_2_99", EvalDatasetType.EDS),
-    # ("rgb_2_99", EvalDatasetType.EDS),
-    # ("rgb_aligned_town01_night_glass_blur_2_99", EvalDatasetType.EDS),
-    # ("rgb_aligned_town01_night_gaussian_blur_2_99", EvalDatasetType.EDS),
-    # ("rgb_aligned_town01_night_impulse_noise_2_99", EvalDatasetType.EDS),
-    # ("rgb_aligned_town01_night_motion_blur_2_99", EvalDatasetType.EDS),
-    # ("rgb_aligned_town01_night_shot_noise_2_99", EvalDatasetType.EDS),
-    # ("rgb_aligned_town01_night_speckle_noise_2_99", EvalDatasetType.EDS),
+    ("peanuts_running_2360_2460", EvalDatasetType.EDS),
+    ("peanuts_light_160_386", EvalDatasetType.EDS),
 ]
 
 error_threshold_range = np.arange(1, 32, 1)
-results_dir = Path(
-    "/home/aircraft-lab/Documents/Deep_Learning_Project/DL_Final_Project_Team6/DL_Final_Project_Team6/evaluations/correlation3_unscaled/2024-12-10_131153"
-)
-out_dir = Path(
-    "/home/aircraft-lab/Documents/Deep_Learning_Project/DL_Final_Project_Team6/DL_Final_Project_Team6/evaluations/correlation3_unscaled/2024-12-10_131153/benchmark_results"
-)
+
+
+# New custom paths for GT and model predictions
+gt_dir = Path("/data/projects/vchaudhari/CV_project/gt_tracks")
+pred_dir = Path("/data/projects/vchaudhari/CV_project/Results/model12/fog/")
+
+# Output benchmark results
+out_dir = Path("/data/projects/vchaudhari/CV_project/Results/model2/fog/benchmark_results")
+out_dir.mkdir(parents=True, exist_ok=True)
+
 methods = ["network_pred"]
 
 table_keys = [
@@ -70,8 +56,10 @@ for k in table_keys:
 
 for eval_sequence in EVAL_DATASETS:
     sequence_name = eval_sequence[0]
+
+    # Load ground truth from custom path
     track_data_gt = read_txt_results(
-        str(results_dir / f"{sequence_name}.gt.txt")
+        str(gt_dir / f"{sequence_name}.gt.txt")
     )
 
     rows = {}
@@ -81,8 +69,9 @@ for eval_sequence in EVAL_DATASETS:
     for method in methods:
         inlier_ratio_arr, fa_rel_nz_arr = [], []
 
+        # Load predictions from custom model1 path
         track_data_pred = read_txt_results(
-            str(results_dir / f"{method}" / f"{sequence_name}.txt")
+            str(pred_dir / f"{sequence_name}.txt")
         )
 
         if track_data_pred[0, 1] != track_data_gt[0, 1]:
