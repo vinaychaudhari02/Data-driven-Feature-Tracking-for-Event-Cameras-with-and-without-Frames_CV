@@ -1,12 +1,12 @@
 name: m3ed
 
 _target_: disp_dataloader.m3ed_loader.M3EDDataModule
-data_dir: <path>
+data_dir: "F:/multiflow/M3ED_output_5"  # Explicitly set data directory
 
-num_workers: 8
+num_workers: 4
 
 # For tracks
-batch_size: 4
+batch_size: 1
 
 n_train: 3000000  # Max number
 n_val: 10000  # Max number

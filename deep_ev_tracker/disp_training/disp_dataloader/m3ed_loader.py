@@ -98,18 +98,7 @@ val_sequences = [
 ]
 
 test_sequences = [
-    'car_forest_sand_1',
-    'falcon_forest_road_forest',
-    'car_forest_tree_tunnel',
-    'falcon_outdoor_day_penno_cars',
-    'falcon_outdoor_day_fast_flight_2',
-    'spot_outdoor_day_srt_green_loop',
-    'falcon_outdoor_night_high_beams',
-    'falcon_outdoor_day_penno_trees',
-    'spot_indoor_obstacles',
-    'spot_outdoor_night_penno_plaza_lights',
-    'car_urban_day_horse',
-    'falcon_outdoor_day_penno_plaza',
+    'car_urban_day_horse'
 ]
 
 
@@ -150,62 +139,100 @@ class TrackData:
         images = np.concatenate([images[:, :, :, None], xy_grid], axis=3)
         return images
 
+
+
     def get_data(self, idx_track):
+        # --- load sensor data ---
         with h5py.File(self.data_path, 'r') as h5_sensor_data:
-            event_reprs = h5_sensor_data['evleft_sbtmax'][self.start_idx:self.start_idx + self.track_length, :, :, :]
-            images = h5_sensor_data['ovcleft'][self.start_idx:self.start_idx + self.track_length, :, :]
+            event_reprs = h5_sensor_data['evleft_sbtmax'][
+                self.start_idx : self.start_idx + self.track_length, :, :, :
+            ]
+            images = h5_sensor_data['ovcleft'][
+                self.start_idx : self.start_idx + self.track_length, :, :
+            ]
 
         images = self.add_xy_grid(images)
 
+        # --- load track info ---
         h5_tracks = h5py.File(self.track_path, 'r')
-        timestamp_list = [int(timstamp) for timstamp in list(h5_tracks.keys())]
-        timestamp_list.sort()
-        timestamps = timestamp_list[self.start_idx:self.start_idx + self.track_length]
+        timestamp_list = sorted(int(t) for t in h5_tracks.keys())
+        timestamps = timestamp_list[self.start_idx : self.start_idx + self.track_length]
 
         n_tracks = self.track_ids.shape[0]
-        y_disp = np.zeros([n_tracks, self.track_length], dtype=np.float32)
+        y_disp = np.zeros((n_tracks, self.track_length), dtype=np.float32)
 
-        frame_patches = np.zeros([n_tracks, self.track_length, self.config.patch_size, self.config.patch_size, 3], dtype=np.float32)
-        event_patches = np.zeros([n_tracks, self.track_length, self.config.disp_patch_range, self.config.patch_size, 10], dtype=np.float32)
+        frame_patches = np.zeros(
+            (n_tracks, self.track_length, self.config.patch_size, self.config.patch_size, 3),
+            dtype=np.float32
+        )
+        event_patches = np.zeros(
+            (n_tracks, self.track_length, self.config.disp_patch_range, self.config.patch_size, 10),
+            dtype=np.float32
+        )
         if self.additional_outputs:
-            frame_centers = np.zeros([n_tracks, self.track_length, 2], dtype=np.float32)
+            frame_centers = np.zeros((n_tracks, self.track_length, 2), dtype=np.float32)
 
+        # --- build patches & displacements ---
         for i_t, timestamp in enumerate(timestamps):
-            timestamp = str(timestamp)
-            track_idx = np.nonzero(h5_tracks[timestamp]['track_id'][:][None, :] == self.track_ids[:, None])[1]
-            assert track_idx.shape[0] == self.track_ids.shape[0]
+            ts_str = str(timestamp)
+            track_idx = np.nonzero(
+                h5_tracks[ts_str]['track_id'][:] == self.track_ids[:, None]
+            )[1]
+            assert track_idx.shape[0] == n_tracks
 
-            d = h5_tracks[timestamp]['d'][:]
+            d = h5_tracks[ts_str]['d'][:]
             y_disp[:, i_t] = d[track_idx]
 
-            uv = h5_tracks[timestamp]['uv'][:]
+            uv = h5_tracks[ts_str]['uv'][:]
             frame_center = np.rint(uv[track_idx])
 
-            frame_patches[:, i_t, :, :, :] = get_patches(images[i_t, :, :], frame_center, self.config.patch_size)
-            event_patches[:, i_t, :, :, :] = get_event_patches(event_reprs[i_t, :, :, :], frame_center,
-                                                               self.config.patch_size, self.config.disp_patch_range)
+            frame_patches[:, i_t] = get_patches(
+                images[i_t], frame_center, self.config.patch_size
+            )
+            event_patches[:, i_t] = get_event_patches(
+                event_reprs[i_t], frame_center,
+                self.config.patch_size, self.config.disp_patch_range
+            )
             if self.additional_outputs:
-                frame_centers[:, i_t, :] = frame_center
+                frame_centers[:, i_t] = frame_center
 
         h5_tracks.close()
 
+        # --- normalize & augment ---
         frame_patches = frame_patches.astype(np.float32)
-        frame_patches[:, :, :, :, 0] = frame_patches[:, :, :, :, 0] / 255.
+        frame_patches[..., 0] /= 255.0
 
         if self.augment:
             h, w = images.shape[1:3]
-            transl_x = np.random.uniform(-20 / w, 20 / w, [n_tracks, 1])
-            transl_y = np.random.uniform(-20 / h, 20 / h, [n_tracks, 1])
+            transl_x = np.random.uniform(-20 / w, 20 / w, (n_tracks, 1))
+            transl_y = np.random.uniform(-20 / h, 20 / h, (n_tracks, 1))
             transl = np.concatenate([transl_x, transl_y], axis=1)
             frame_patches[:, :, :, :, 1:] += transl[:, None, None, None, :]
 
-        frame_idx_array = np.ones([n_tracks], dtype=np.int32) * idx_track
+        frame_idx_array = np.full(n_tracks, idx_track, dtype=np.int32)
+
+        # --- cross-platform path info ---
+        filename      = os.path.basename(self.data_path)
+        parent_folder = os.path.basename(os.path.dirname(self.data_path))
+        timestamp0    = str(timestamps[0])
+        seq_name      = f"{parent_folder}/{timestamp0}"
+
+        # print("DATAAAAAA", filename)
+        # print(parent_folder)
+        # print(timestamp0)
+        # print(seq_name)
 
         if self.additional_outputs:
-            seq_name = self.data_path.split('/')[-2] + '/' + str(timestamps[0])
-            return frame_patches, event_patches, y_disp, frame_idx_array, [seq_name] * n_tracks, frame_centers
+            print("result", frame_patches, event_patches, y_disp,
+                frame_idx_array, [seq_name] * n_tracks, frame_centers)
+            return (
+                frame_patches, event_patches, y_disp,
+                frame_idx_array, [seq_name] * n_tracks, frame_centers
+            )
         else:
+            print("result", frame_patches, event_patches, y_disp, frame_idx_array)
             return frame_patches, event_patches, y_disp, frame_idx_array
+
 
 
 class TrackDataset(Dataset):
@@ -240,6 +267,7 @@ class TrackDataset(Dataset):
                                       self.augment,
                                       self.disp_patch_range)
         track_loader = TrackData(track_tuple, data_config, self.min_track_length, self.additional_outputs, self.augment)
+        #print("data", track_loader.get_data(idx_track))
         return track_loader.get_data(idx_track)
 
 

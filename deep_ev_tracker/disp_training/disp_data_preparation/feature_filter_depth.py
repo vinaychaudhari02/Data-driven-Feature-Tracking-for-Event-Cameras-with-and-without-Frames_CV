@@ -88,48 +88,36 @@ class FeatureFilter:
         viz_dict = None
         return viz_dict
 
-    def backward_step(self, depth_image, image, T_W_C, K, frame_id):
-        image = cv2.GaussianBlur(image, (3, 3), 0)
-        if image.ndim == 3:
-            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        else:
-            gray_image = image
+    def backward_step(self, depth_image, img, T_W_C, K, frame_id):
+        # Get points from previous frame
+        prev_points, prev_point_to_storage_id = self.track_storage.get_tracked_points_reverse(frame_id)
+        
+        # print(f"prev_points: {prev_points.shape}")
+        if len(prev_points) == 0:
+            self.prev_img = img
+            return {'img': img, 'depth': depth_image}
 
-        if self.backward_counter == 0:
-            self.prev_img = gray_image
-            self.backward_counter += 1
-            self.prev_frame_id = frame_id
-            viz_dict = None
-            return viz_dict
-
-        # Image points tracked in the forward loop will be overwritten
-        prev_points, prev_point_to_storage_id = self.track_storage.get_tracked_points_reverse(self.prev_frame_id)
-        nextPoints = prev_points.copy()
-        if T_W_C is not None:
-            projection_mask, projected_points = self.track_storage.get_projected_points_with_storage_idx(
-                prev_point_to_storage_id, T_W_C, K)
-            nextPoints[projection_mask, :] = projected_points
-        tracked_points, status, err = cv2.calcOpticalFlowPyrLK(prevImg=self.prev_img,
-                                                               nextImg=gray_image,
-                                                               prevPts=prev_points,
-                                                               nextPts=nextPoints,
-                                                               flags=cv2.OPTFLOW_USE_INITIAL_FLOW,
-                                                               minEigThreshold=self.minEigThreshold,
-                                                               winSize=(25, 25), maxLevel=5)
-        _, in_frame_mask = self.get_image_points(tracked_points, gray_image.shape[0], gray_image.shape[1])
-        status *= in_frame_mask[:, None].astype(np.uint8)
-
+        # Update TrackStorage's current tracked points and IDs with the previous frame's data
+        self.track_storage.tracked_points = prev_points
         self.track_storage.tracked_point_to_storage_id = prev_point_to_storage_id
+
+        # Calculate optical flow
+        tracked_points, status, err = cv2.calcOpticalFlowPyrLK(
+            prevImg=self.prev_img,
+            nextImg=img,
+            prevPts=prev_points,
+            nextPts=None,
+            winSize=(21, 21),
+            maxLevel=3,
+            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01),
+            minEigThreshold=1e-4
+        )
+
+        # Update tracked points using the current state
         self.track_storage.update_tracked_points(tracked_points, status, depth_image, T_W_C, K, frame_id)
+        self.prev_img = img
 
-        self.prev_img = gray_image
-        self.backward_counter += 1
-        self.prev_frame_id = frame_id
-
-        # Visualization
-        viz_dict = None
-
-        return viz_dict
+        return {'img': img, 'depth': depth_image}
 
     def visualization_step(self, depth_image, image, T_W_C, K, frame_id):
         viz_image = image.copy()

@@ -1,5 +1,4 @@
 import logging
-
 import os
 import hydra
 import numpy as np
@@ -7,13 +6,14 @@ import pytorch_lightning as pl
 import torch
 import sys
 import tqdm
+import matplotlib.pyplot as plt
+import imageio
+
+from omegaconf import OmegaConf, open_dict
 
 sys.path.append('D:\Academics\PhD\SLU\Computer Vision\Data-driven-Feature-Tracking-for-Event-Cameras-with-and-without-Frames_CV\deep_ev_tracker')
-
 from utils.utils import *
 from disp_dataloader.m3ed_loader import M3EDTestDataModule
-
-
 
 logger = logging.getLogger(__name__)
 os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
@@ -39,8 +39,34 @@ def propagate_keys_disp(cfg):
 def create_attn_mask(seq_frame_idx, device):
     attn_mask = torch.from_numpy(seq_frame_idx[:, None] == seq_frame_idx[None, :]).to(device)
     attn_mask = torch.logical_not(attn_mask).bool()
-
     return attn_mask
+
+
+def save_disparity_gif(seq_frames, pred_disp, gt_disp, sample_idx, save_path, min_track_length):
+    os.makedirs(save_path, exist_ok=True)
+    images = []
+
+    for t in range(min_track_length):
+        frame = seq_frames[sample_idx, t].permute(1, 2, 0).cpu().numpy()
+
+        # Convert to RGB if grayscale
+        if frame.shape[2] == 1:
+            frame = np.repeat(frame, 3, axis=2)
+
+        # Plot with disparity info
+        fig, ax = plt.subplots()
+        ax.imshow(frame.astype(np.uint8))
+        ax.set_title(f"t={t}, Pred: {pred_disp[sample_idx, t]:.2f}, GT: {gt_disp[sample_idx, t]:.2f}")
+        ax.axis('off')
+
+        fig.canvas.draw()
+        image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
+        image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        images.append(image)
+        plt.close(fig)
+
+    gif_name = os.path.join(save_path, f"sample_{sample_idx}_eval.gif")
+    imageio.mimsave(gif_name, images, fps=2)
 
 
 def test_run(model, dataloader, cfg):
@@ -48,21 +74,11 @@ def test_run(model, dataloader, cfg):
     model = model.eval()
     model = model.to(device)
 
-    # Create attention mask
-    n_samples = cfg.data.batch_size * cfg.tracks_per_sample
     attn_mask = None
 
-    # Iterate over test dataset
     list_disp_pred, list_disp_gt, list_seq_names, list_img_points = [], [], [], []
-    
-    # Debug: Print dataloader info
-    print(f"Number of batches in dataloader: {len(dataloader)}")
-    
-    for batch_idx, batch_sample in enumerate(tqdm(dataloader)):
-        print(f"Processing batch {batch_idx}")
+    for batch_idx, batch_sample in enumerate(tqdm.tqdm(dataloader)):
         seq_frame_patches, seq_event_patches, seq_y_gt_disp_samples, seq_frame_idx, seq_names, img_points = batch_sample
-        print(f"Batch shapes - frames: {seq_frame_patches.shape}, events: {seq_event_patches.shape}")
-        
         seq_frame_patches = torch.from_numpy(seq_frame_patches).permute([0, 1, 4, 2, 3]).to(device)
         seq_event_patches = torch.from_numpy(seq_event_patches).permute([0, 1, 4, 2, 3]).to(device)
         n_samples = seq_frame_patches.shape[0]
@@ -77,8 +93,6 @@ def test_run(model, dataloader, cfg):
         for i_unroll in range(cfg.min_track_length):
             frame_patches = seq_frame_patches[:, i_unroll, :, :, :]
             event_patches = seq_event_patches[:, i_unroll, :, :, :]
-
-            # Inference
             y_disp_pred = model.forward(frame_patches, event_patches, attn_mask)
             y_pred_disp_samples[:, i_unroll] = y_disp_pred[:, 1].detach().cpu().numpy()
 
@@ -86,14 +100,18 @@ def test_run(model, dataloader, cfg):
         list_disp_gt.append(seq_y_gt_disp_samples)
         list_seq_names.append(seq_names)
         list_img_points.append(img_points)
-        
-        print(f"Batch {batch_idx} completed. Predictions shape: {y_pred_disp_samples.shape}")
 
-    # Debug: Print final list sizes
-    print(f"Number of predictions collected: {len(list_disp_pred)}")
-    
-    if len(list_disp_pred) == 0:
-        raise ValueError("No predictions were made. Check if the dataloader is providing data correctly.")
+        # Save GIFs for the first batch only
+        if batch_idx == 0:
+            for sample_idx in range(min(3, n_samples)):
+                save_disparity_gif(
+                    seq_frames=seq_frame_patches,
+                    pred_disp=y_pred_disp_samples,
+                    gt_disp=seq_y_gt_disp_samples,
+                    sample_idx=sample_idx,
+                    save_path='eval_gifs',
+                    min_track_length=cfg.min_track_length
+                )
 
     # Save results
     np.savez_compressed('results.npz',
@@ -110,22 +128,20 @@ def test_run(model, dataloader, cfg):
 def test(cfg):
     pl.seed_everything(1234)
 
-    # Update configuration dicts with common keys
     propagate_keys_disp(cfg)
     logger.info("\n" + OmegaConf.to_yaml(cfg))
 
     with open('test_config.yaml', 'w') as outfile:
         OmegaConf.save(cfg, outfile)
 
-    # Instantiate model
     model = hydra.utils.instantiate(
         cfg.model,
-        _recursive_=False,
+        recursive=False,
     )
+
     if cfg.checkpoint_path.lower() == 'none':
         print("Provide Checkpoints")
 
-    # Load weights
     checkpoint = torch.load(cfg.checkpoint_path)
     model.load_state_dict(checkpoint['state_dict'], strict=True)
 
@@ -137,5 +153,5 @@ def test(cfg):
         test_run(model, dataloader, cfg)
 
 
-if __name__ == '__main__':
+if __name__ == '_main_':
     test()
